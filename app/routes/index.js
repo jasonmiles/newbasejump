@@ -1,57 +1,67 @@
 'use strict';
 
 var path = process.cwd();
-var ClickHandler = require(path + '/app/controllers/clickHandler.server.js');
+
+
+require('datejs');
+
+
+var months = [
+			 "January",
+			 "February",
+			 "March",
+			 "April",
+			 "May",
+			 "June",
+			 "July",
+			 "August",
+			 "September",
+			 "October",
+			 "November",
+			 "December"];
 
 module.exports = function (app, passport) {
 
-	function isLoggedIn (req, res, next) {
-		if (req.isAuthenticated()) {
-			return next();
-		} else {
-			res.redirect('/login');
-		}
-	}
-
-	var clickHandler = new ClickHandler();
 
 	app.route('/')
-		.get(isLoggedIn, function (req, res) {
+		.get(function (req, res) {
 			res.sendFile(path + '/public/index.html');
 		});
-
-	app.route('/login')
+		
+	app.route('/:date')
 		.get(function (req, res) {
-			res.sendFile(path + '/public/login.html');
-		});
+			
+			if(!isNaN(req.params.date))
+			{
+				var dateTime = new Date(req.params.date * 1000);
+				var dateString = months[dateTime.getMonth()] + " " + dateTime.getDate() + ", " + dateTime.getFullYear();
+				var dateObj = {"unix" : req.params.date, "natural" : dateString};
+				res.send(dateObj);
+			}
+			
+			else
+			{
+			for(var i = 1; i < months.length; i++)
+			{
+				
+				var re = new RegExp(months[i],"ig");
+			
+				if(req.params.date.match(re))
+				{
+					var unixtime = Date.parse(req.params.date).getTime()/1000;
+					var dateTime = new Date(unixtime * 1000);
+					var dateString = months[dateTime.getMonth()] + " " + dateTime.getDate() + ", " + dateTime.getFullYear();
+					var dateObj = {"unix" : unixtime, "natural" : dateString};
+					res.send(dateObj);
+				}
+			}
+			var dateObj = {"unix" : null, "natural" : null};
+			res.send(dateObj);
+			}
+			
 
-	app.route('/logout')
-		.get(function (req, res) {
-			req.logout();
-			res.redirect('/login');
-		});
+			
+		})
 
-	app.route('/profile')
-		.get(isLoggedIn, function (req, res) {
-			res.sendFile(path + '/public/profile.html');
-		});
 
-	app.route('/api/:id')
-		.get(isLoggedIn, function (req, res) {
-			res.json(req.user.github);
-		});
-
-	app.route('/auth/github')
-		.get(passport.authenticate('github'));
-
-	app.route('/auth/github/callback')
-		.get(passport.authenticate('github', {
-			successRedirect: '/',
-			failureRedirect: '/login'
-		}));
-
-	app.route('/api/:id/clicks')
-		.get(isLoggedIn, clickHandler.getClicks)
-		.post(isLoggedIn, clickHandler.addClick)
-		.delete(isLoggedIn, clickHandler.resetClicks);
 };
